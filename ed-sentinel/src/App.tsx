@@ -9,6 +9,7 @@ import { ChatPanel } from './components/ChatPanel';
 import { HospitalSelector } from './components/HospitalSelector';
 import { PurgeClock } from './components/PurgeClock';
 import { ReportModal } from './components/ReportModal';
+import { DataIngestion } from './components/DataIngestion';
 
 function getPurgeState(nowMin: number): PurgeState {
   if (nowMin < 22 * 60) return 'idle';
@@ -21,15 +22,16 @@ export default function App() {
 
   const [hospital, setHospital] = useState<Hospital>(HOSPITALS[0]);
   const [paused, setPaused] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'purge' | 'log'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'ingest' | 'purge' | 'log'>('dashboard');
   const [demoMinutes, setDemoMinutes] = useState(840);
   const [actionTaken, setActionTaken] = useState(false);
   const [purgeLog, setPurgeLog] = useState<PurgeLogEntry[]>([]);
   const [eventLog, setEventLog] = useState<string[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportInsights, setReportInsights] = useState('');
+  const [ingestedData, setIngestedData] = useState<Record<string, number> | null>(null);
 
-  const { metrics, tick } = useMetrics(paused);
+  const { metrics, tick } = useMetrics(paused, ingestedData);
   const { messages, loading, sendMessage, resetChat } = useChat(hospital, metrics);
 
   const purgeState = getPurgeState(demoMinutes);
@@ -84,6 +86,7 @@ export default function App() {
 
   const tabs = [
     { id: 'dashboard', label: '⚡ Dashboard' },
+    { id: 'ingest',    label: ingestedData ? '📥 Ingest  ●' : '📥 Ingest' },
     { id: 'purge',     label: '🕐 Purge Clock' },
     { id: 'log',       label: '📋 Event Log' },
   ] as const;
@@ -110,6 +113,13 @@ export default function App() {
                 <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
               </div>
             ))}
+            {ingestedData && (
+              <div style={{ background: '#00E5A014', border: '1px solid #00E5A044', borderRadius: 8, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00E5A0' }} />
+                <span style={{ fontSize: 10, color: '#00E5A0', fontWeight: 700 }}>Live Data</span>
+                <button onClick={() => setIngestedData(null)} style={{ background: 'none', border: 'none', color: '#00E5A088', cursor: 'pointer', fontSize: 12, padding: 0, marginLeft: 2 }}>✕</button>
+              </div>
+            )}
             <button
               onClick={toggle}
               title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -186,6 +196,18 @@ export default function App() {
               <ChatPanel messages={messages} loading={loading} onSend={sendMessage} onGenerateReport={handleGenerateReport} />
             </div>
           </div>
+        )}
+
+        {activeTab === 'ingest' && (
+          <DataIngestion
+            hospital={hospital}
+            hasIngested={!!ingestedData}
+            onApply={values => {
+              setIngestedData(values);
+              setActiveTab('dashboard');
+            }}
+            onClear={() => setIngestedData(null)}
+          />
         )}
 
         {activeTab === 'purge' && (

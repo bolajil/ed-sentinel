@@ -33,31 +33,33 @@ function getStatus(id: string, unit: string, warn: number, crit: number, value: 
   return 'ok';
 }
 
-export function useMetrics(paused: boolean): { metrics: MetricSnapshot[]; tick: number } {
+export function useMetrics(
+  paused: boolean,
+  overrides: Record<string, number> | null = null,
+): { metrics: MetricSnapshot[]; tick: number } {
   const [tick, setTick] = useState(0);
   const [displayed, setDisplayed] = useState<Record<string, number>>(() =>
     Object.fromEntries(METRIC_DEFS.map(d => [d.id, Math.round(targetValue(d.id, 0) * 10) / 10]))
   );
 
-  // Advance the sine-wave target every 6 seconds
   useEffect(() => {
     if (paused) return;
     const t = setInterval(() => setTick(v => v + 1), 6000);
     return () => clearInterval(t);
   }, [paused]);
 
-  // Glide displayed values 12% toward the current target every second
-  // Values drift smoothly rather than jumping — restarts when tick or pause changes
   useEffect(() => {
     if (paused) return;
     const t = setInterval(() => {
       setDisplayed(prev => {
         const next: Record<string, number> = {};
         for (const def of METRIC_DEFS) {
+          const target = overrides?.[def.id] !== undefined
+            ? overrides[def.id]
+            : targetValue(def.id, tick);
           if (def.unit === 'bool') {
-            next[def.id] = targetValue(def.id, tick);
+            next[def.id] = target;
           } else {
-            const target = targetValue(def.id, tick);
             const stepped = prev[def.id] + (target - prev[def.id]) * 0.12;
             next[def.id] = Math.round(stepped * 10) / 10;
           }
@@ -66,7 +68,7 @@ export function useMetrics(paused: boolean): { metrics: MetricSnapshot[]; tick: 
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [paused, tick]);
+  }, [paused, tick, overrides]);
 
   const metrics: MetricSnapshot[] = METRIC_DEFS.map(def => {
     const value = displayed[def.id] ?? targetValue(def.id, tick);

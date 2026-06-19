@@ -27,6 +27,10 @@ module.exports = function (app) {
     }
   });
 
+  // ── AI data ingestion — reuse the serverless function directly ─────────────
+  const ingestHandler = require('../api/ingest.js');
+  app.use('/api/ingest', express.json({ limit: '10mb' }), ingestHandler);
+
   // ── Resend email report proxy ───────────────────────────────────────────────
   app.use('/api/send-report', express.json(), async (req, res) => {
     const apiKey = process.env.RESEND_API_KEY;
