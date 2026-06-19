@@ -2,23 +2,23 @@ import { useState, useEffect } from 'react';
 import { MetricSnapshot, MetricStatus } from '../types';
 import { METRIC_DEFS, CACHE_BASELINES } from '../data/static';
 
-function simulateValue(id: string, tick: number): number {
-  const noise = () => (Math.random() - 0.5) * 2;
-  const bases: Record<string, number> = {
-    arrivals:            28 + Math.sin(tick / 8) * 10 + noise(),
-    lwbs_rate:           3.1 + Math.max(0, Math.sin(tick / 6) * 5) + noise() * 0.15,
-    door_to_triage:      13 + noise(),
-    door_to_room:        38 + Math.max(0, Math.sin(tick / 7) * 22) + noise(),
-    arrival_to_provider: 52 + Math.max(0, Math.sin(tick / 6) * 30) + noise(),
-    boarding_census:     Math.max(0, 5 + Math.sin(tick / 9) * 4 + noise() * 0.5),
-    waiting_room:        Math.max(0, 9 + Math.sin(tick / 6) * 12 + noise() * 0.5),
-    ed_los_discharged:   3.2 + noise() * 0.15,
-    ed_los_admitted:     5.8 + noise() * 0.2,
-    esi_4_5_pct:         38 + noise(),
+// Smooth sine-wave targets — no random noise
+function targetValue(id: string, tick: number): number {
+  const v: Record<string, number> = {
+    arrivals:            28 + Math.sin(tick / 8) * 10,
+    lwbs_rate:           3.1 + Math.max(0, Math.sin(tick / 6) * 5),
+    door_to_triage:      13 + Math.sin(tick / 12) * 2,
+    door_to_room:        38 + Math.max(0, Math.sin(tick / 7) * 22),
+    arrival_to_provider: 52 + Math.max(0, Math.sin(tick / 6) * 30),
+    boarding_census:     Math.max(0, 5 + Math.sin(tick / 9) * 4),
+    waiting_room:        Math.max(0, 9 + Math.sin(tick / 6) * 12),
+    ed_los_discharged:   3.2 + Math.sin(tick / 15) * 0.4,
+    ed_los_admitted:     5.8 + Math.sin(tick / 12) * 0.8,
+    esi_4_5_pct:         38 + Math.sin(tick / 10) * 4,
     fast_track_open:     tick % 20 < 15 ? 1 : 0,
-    provider_coverage:   88 + noise() * 2,
+    provider_coverage:   88 + Math.sin(tick / 11) * 6,
   };
-  return Math.round((bases[id] ?? 0) * 10) / 10;
+  return v[id] ?? 0;
 }
 
 function getStatus(id: string, unit: string, warn: number, crit: number, value: number): MetricStatus {
@@ -35,15 +35,41 @@ function getStatus(id: string, unit: string, warn: number, crit: number, value: 
 
 export function useMetrics(paused: boolean): { metrics: MetricSnapshot[]; tick: number } {
   const [tick, setTick] = useState(0);
+  const [displayed, setDisplayed] = useState<Record<string, number>>(() =>
+    Object.fromEntries(METRIC_DEFS.map(d => [d.id, Math.round(targetValue(d.id, 0) * 10) / 10]))
+  );
 
+  // Advance the sine-wave target every 6 seconds
   useEffect(() => {
     if (paused) return;
-    const t = setInterval(() => setTick(v => v + 1), 5000);
+    const t = setInterval(() => setTick(v => v + 1), 6000);
     return () => clearInterval(t);
   }, [paused]);
 
+  // Glide displayed values 12% toward the current target every second
+  // Values drift smoothly rather than jumping — restarts when tick or pause changes
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => {
+      setDisplayed(prev => {
+        const next: Record<string, number> = {};
+        for (const def of METRIC_DEFS) {
+          if (def.unit === 'bool') {
+            next[def.id] = targetValue(def.id, tick);
+          } else {
+            const target = targetValue(def.id, tick);
+            const stepped = prev[def.id] + (target - prev[def.id]) * 0.12;
+            next[def.id] = Math.round(stepped * 10) / 10;
+          }
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [paused, tick]);
+
   const metrics: MetricSnapshot[] = METRIC_DEFS.map(def => {
-    const value = simulateValue(def.id, tick);
+    const value = displayed[def.id] ?? targetValue(def.id, tick);
     const status = getStatus(def.id, def.unit, def.warn, def.crit, value);
     const base = CACHE_BASELINES[def.cacheKey];
     const delta = base ? Math.round(((value - base) / base) * 100) : null;
