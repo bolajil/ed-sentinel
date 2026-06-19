@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { C } from '../data/tokens';
+import { useTheme } from '../context/ThemeContext';
 import { CHAT_SUGGESTIONS } from '../data/static';
 
 interface Props {
@@ -10,7 +10,6 @@ interface Props {
 }
 
 function renderContent(text: string) {
-  // Bold **text**
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((p, i) =>
     p.startsWith('**') ? <strong key={i} style={{ color: '#F8FAFC' }}>{p.slice(2, -2)}</strong> : p
@@ -20,6 +19,7 @@ function renderContent(text: string) {
 const CONFIDENCE_COLORS = { high: '#00E5A0', medium: '#FFD166', low: '#FF7A2F' };
 
 export const ChatPanel: React.FC<Props> = ({ messages, loading, onSend }) => {
+  const { colors: C } = useTheme();
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 

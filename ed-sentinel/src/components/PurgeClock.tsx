@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PurgeLogEntry, PurgeState } from '../types';
-import { C } from '../data/tokens';
+import { useTheme } from '../context/ThemeContext';
 
 interface Props {
   demoMinutes: number;
@@ -18,7 +18,7 @@ const fmtMin = (m: number) => {
   return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${ampm} CST`;
 };
 
-const Countdown: React.FC<{ toMin: number; nowMin: number; label: string; color: string }> = ({ toMin, nowMin, label, color }) => {
+const Countdown: React.FC<{ toMin: number; nowMin: number; label: string; color: string; mutedColor: string }> = ({ toMin, nowMin, label, color, mutedColor }) => {
   const diff = Math.max(0, toMin - nowMin);
   const h = Math.floor(diff / 60);
   const m = diff % 60;
@@ -27,12 +27,13 @@ const Countdown: React.FC<{ toMin: number; nowMin: number; label: string; color:
       <div style={{ fontSize: 26, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
         {h > 0 ? `${h}h ${m}m` : `${m}m`}
       </div>
-      <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
+      <div style={{ fontSize: 9, color: mutedColor, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</div>
     </div>
   );
 };
 
 export const PurgeClock: React.FC<Props> = ({ demoMinutes, onMinutesChange, purgeState, actionTaken, purgeLog, onAction }) => {
+  const { colors: C } = useTheme();
   const quickJumps = [
     { label: '2 PM', min: 840 }, { label: '9 PM', min: 1260 },
     { label: '10 PM', min: 1320 }, { label: '11 PM', min: 1380 }, { label: '11:50 PM', min: 1430 },
@@ -66,11 +67,11 @@ export const PurgeClock: React.FC<Props> = ({ demoMinutes, onMinutesChange, purg
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ background: C.card, border: `1px solid ${C.orange}44`, borderRadius: 8, padding: 14, textAlign: 'center' }}>
           <div style={{ fontSize: 9, color: C.orange, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>🔔 Reminder fires</div>
-          <Countdown toMin={22 * 60} nowMin={demoMinutes} label="until 10:00 PM" color={C.orange} />
+          <Countdown toMin={22 * 60} nowMin={demoMinutes} label="until 10:00 PM" color={C.orange} mutedColor={C.muted} />
         </div>
         <div style={{ background: C.card, border: `1px solid ${C.red}44`, borderRadius: 8, padding: 14, textAlign: 'center' }}>
           <div style={{ fontSize: 9, color: C.red, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>🗑 Auto-purge</div>
-          <Countdown toMin={23 * 60 + 50} nowMin={demoMinutes} label="until 11:50 PM" color={C.red} />
+          <Countdown toMin={23 * 60 + 50} nowMin={demoMinutes} label="until 11:50 PM" color={C.red} mutedColor={C.muted} />
         </div>
       </div>
 

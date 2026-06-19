@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Hospital, PurgeLogEntry, PurgeState } from './types';
 import { HOSPITALS } from './data/static';
-import { C } from './data/tokens';
 import { useMetrics } from './hooks/useMetrics';
 import { useChat } from './hooks/useChat';
+import { useTheme } from './context/ThemeContext';
 import { MetricGrid } from './components/MetricGrid';
 import { ChatPanel } from './components/ChatPanel';
 import { HospitalSelector } from './components/HospitalSelector';
@@ -16,6 +16,8 @@ function getPurgeState(nowMin: number): PurgeState {
 }
 
 export default function App() {
+  const { colors: C, isDark, toggle } = useTheme();
+
   const [hospital, setHospital] = useState<Hospital>(HOSPITALS[0]);
   const [paused, setPaused] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'purge' | 'log'>('dashboard');
@@ -80,7 +82,7 @@ export default function App() {
 
   return (
     <div style={{ background: C.bg, minHeight: '100vh', fontFamily: "'Inter', system-ui, sans-serif", color: C.text, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: 'linear-gradient(135deg,#0A1628 0%,#080C14 100%)', borderBottom: `1px solid ${C.border}`, padding: '16px 24px', flexShrink: 0 }}>
+      <div style={{ background: C.headerBg, borderBottom: `1px solid ${C.border}`, padding: '16px 24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
@@ -100,6 +102,23 @@ export default function App() {
                 <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
               </div>
             ))}
+            <button
+              onClick={toggle}
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              style={{
+                background: C.card,
+                border: `1px solid ${C.border}`,
+                borderRadius: 8,
+                padding: '6px 10px',
+                color: C.muted,
+                fontSize: 16,
+                cursor: 'pointer',
+                lineHeight: 1,
+                transition: 'all 0.2s',
+              }}
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
             <button onClick={() => setPaused(v => !v)} style={{
               background: paused ? C.accentDim : C.card, border: `1px solid ${paused ? C.accent : C.border}`,
               borderRadius: 8, padding: '6px 12px', color: paused ? C.accent : C.muted,
