@@ -7,6 +7,7 @@ interface Props {
   messages: ChatMessage[];
   loading: boolean;
   onSend: (text: string) => void;
+  onGenerateReport?: (insights: string) => void;
 }
 
 function renderContent(text: string) {
@@ -18,10 +19,15 @@ function renderContent(text: string) {
 
 const CONFIDENCE_COLORS = { high: '#00E5A0', medium: '#FFD166', low: '#FF7A2F' };
 
-export const ChatPanel: React.FC<Props> = ({ messages, loading, onSend }) => {
+export const ChatPanel: React.FC<Props> = ({ messages, loading, onSend, onGenerateReport }) => {
   const { colors: C } = useTheme();
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const handleGenerateReport = () => {
+    const lastAgent = [...messages].reverse().find(m => m.role === 'agent' && m.id !== '0');
+    onGenerateReport?.(lastAgent?.content ?? '');
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,11 +45,20 @@ export const ChatPanel: React.FC<Props> = ({ messages, loading, onSend }) => {
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.green, boxShadow: `0 0 6px ${C.green}` }} />
-        <div>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.green, boxShadow: `0 0 6px ${C.green}`, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.white }}>Sentinel Chat</div>
           <div style={{ fontSize: 10, color: C.muted }}>Powered by Claude · Evidence-grounded answers</div>
         </div>
+        {messages.length > 1 && onGenerateReport && (
+          <button onClick={handleGenerateReport} style={{
+            background: C.accentDim, border: `1px solid ${C.accent}`,
+            borderRadius: 6, padding: '5px 10px', color: C.accent,
+            fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>
+            📄 Report
+          </button>
+        )}
       </div>
 
       {/* Messages */}

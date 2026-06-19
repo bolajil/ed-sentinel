@@ -8,6 +8,7 @@ import { MetricGrid } from './components/MetricGrid';
 import { ChatPanel } from './components/ChatPanel';
 import { HospitalSelector } from './components/HospitalSelector';
 import { PurgeClock } from './components/PurgeClock';
+import { ReportModal } from './components/ReportModal';
 
 function getPurgeState(nowMin: number): PurgeState {
   if (nowMin < 22 * 60) return 'idle';
@@ -25,6 +26,8 @@ export default function App() {
   const [actionTaken, setActionTaken] = useState(false);
   const [purgeLog, setPurgeLog] = useState<PurgeLogEntry[]>([]);
   const [eventLog, setEventLog] = useState<string[]>([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportInsights, setReportInsights] = useState('');
 
   const { metrics, tick } = useMetrics(paused);
   const { messages, loading, sendMessage, resetChat } = useChat(hospital, metrics);
@@ -67,6 +70,11 @@ export default function App() {
         : `${hospital.name} daily data purged by human action.`,
     }]);
   }, [hospital.name]);
+
+  const handleGenerateReport = useCallback((insights: string) => {
+    setReportInsights(insights);
+    setReportOpen(true);
+  }, []);
 
   const handleMinutesChange = (m: number) => {
     setDemoMinutes(m);
@@ -175,7 +183,7 @@ export default function App() {
               </div>
             </div>
             <div style={{ minHeight: 560 }}>
-              <ChatPanel messages={messages} loading={loading} onSend={sendMessage} />
+              <ChatPanel messages={messages} loading={loading} onSend={sendMessage} onGenerateReport={handleGenerateReport} />
             </div>
           </div>
         )}
@@ -204,6 +212,15 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {reportOpen && (
+        <ReportModal
+          hospital={hospital}
+          metrics={metrics}
+          insights={reportInsights}
+          onClose={() => setReportOpen(false)}
+        />
+      )}
 
       <div style={{ padding: '10px 24px', borderTop: `1px solid ${C.border}`, background: C.panel, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <span style={{ fontSize: 9, color: C.muted }}>ED Sentinel Agent · Huron Healthcare AI Platform · {hospital.name} · Tick #{tick}</span>
