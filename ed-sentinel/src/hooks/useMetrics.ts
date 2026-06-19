@@ -3,20 +3,20 @@ import { MetricSnapshot, MetricStatus } from '../types';
 import { METRIC_DEFS, CACHE_BASELINES } from '../data/static';
 
 function simulateValue(id: string, tick: number): number {
-  const noise = () => (Math.random() - 0.48) * 4;
+  const noise = () => (Math.random() - 0.5) * 2;
   const bases: Record<string, number> = {
     arrivals:            28 + Math.sin(tick / 8) * 10 + noise(),
-    lwbs_rate:           3.1 + Math.max(0, Math.sin(tick / 6) * 5) + noise() * 0.3,
-    door_to_triage:      13 + noise() * 2,
-    door_to_room:        38 + Math.max(0, Math.sin(tick / 7) * 22) + noise() * 3,
-    arrival_to_provider: 52 + Math.max(0, Math.sin(tick / 6) * 30) + noise() * 4,
-    boarding_census:     Math.max(0, 5 + Math.sin(tick / 9) * 4 + noise()),
-    waiting_room:        Math.max(0, 9 + Math.sin(tick / 6) * 12 + noise()),
-    ed_los_discharged:   3.2 + noise() * 0.3,
-    ed_los_admitted:     5.8 + noise() * 0.5,
-    esi_4_5_pct:         38 + noise() * 4,
+    lwbs_rate:           3.1 + Math.max(0, Math.sin(tick / 6) * 5) + noise() * 0.15,
+    door_to_triage:      13 + noise(),
+    door_to_room:        38 + Math.max(0, Math.sin(tick / 7) * 22) + noise(),
+    arrival_to_provider: 52 + Math.max(0, Math.sin(tick / 6) * 30) + noise(),
+    boarding_census:     Math.max(0, 5 + Math.sin(tick / 9) * 4 + noise() * 0.5),
+    waiting_room:        Math.max(0, 9 + Math.sin(tick / 6) * 12 + noise() * 0.5),
+    ed_los_discharged:   3.2 + noise() * 0.15,
+    ed_los_admitted:     5.8 + noise() * 0.2,
+    esi_4_5_pct:         38 + noise(),
     fast_track_open:     tick % 20 < 15 ? 1 : 0,
-    provider_coverage:   88 + noise() * 5,
+    provider_coverage:   88 + noise() * 2,
   };
   return Math.round((bases[id] ?? 0) * 10) / 10;
 }
@@ -38,7 +38,7 @@ export function useMetrics(paused: boolean): { metrics: MetricSnapshot[]; tick: 
 
   useEffect(() => {
     if (paused) return;
-    const t = setInterval(() => setTick(v => v + 1), 2000);
+    const t = setInterval(() => setTick(v => v + 1), 5000);
     return () => clearInterval(t);
   }, [paused]);
 
