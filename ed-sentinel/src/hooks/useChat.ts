@@ -54,24 +54,29 @@ export function useChat(hospital: Hospital, metrics: MetricSnapshot[]) {
     setLoading(true);
 
     try {
+      // Mistral uses OpenAI-compatible format: system prompt is first message in array
       const history = messages.map(m => ({
         role: m.role === 'agent' ? 'assistant' : 'user' as 'user' | 'assistant',
         content: m.content,
       }));
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: 'mistral-large-latest',
           max_tokens: 1000,
-          system: buildSystemPrompt(hospital, metrics),
-          messages: [...history, { role: 'user', content: text }],
+          messages: [
+            { role: 'system', content: buildSystemPrompt(hospital, metrics) },
+            ...history,
+            { role: 'user', content: text },
+          ],
         }),
       });
 
       const data = await response.json();
-      const content = data.content?.[0]?.text ?? 'No response received.';
+      // Mistral response: data.choices[0].message.content
+      const content = data.choices?.[0]?.message?.content ?? 'No response received.';
 
       const confidence = content.includes('[HIGH') ? 'high'
         : content.includes('[MEDIUM') ? 'medium' : 'low';
