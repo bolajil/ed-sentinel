@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { PurgeLogEntry, PurgeState } from '../types';
 import { useTheme } from '../context/ThemeContext';
 

@@ -37,7 +37,7 @@ export default function App() {
     const crit = metrics.filter(m => m.status === 'critical').map(m => m.label).join(', ');
     const entry = `[${new Date().toLocaleTimeString()}] Tick #${tick} · ${hospital.name} · Crit: ${crit || 'none'}`;
     setEventLog(prev => [entry, ...prev].slice(0, 40));
-  }, [tick]);
+  }, [tick, hospital.name, metrics]);
 
   useEffect(() => {
     if (purgeState === 'auto_purge' && !actionTaken) {
