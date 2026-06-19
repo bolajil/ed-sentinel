@@ -75,7 +75,13 @@ export function useChat(hospital: Hospital, metrics: MetricSnapshot[]) {
       });
 
       const data = await response.json();
-      // Mistral response: data.choices[0].message.content
+
+      if (!response.ok || data.error) {
+        const msg = typeof data.error === 'string' ? data.error
+          : data.error?.message ?? `API error ${response.status}`;
+        throw new Error(msg);
+      }
+
       const content = data.choices?.[0]?.message?.content ?? 'No response received.';
 
       const confidence = content.includes('[HIGH') ? 'high'
@@ -96,10 +102,11 @@ export function useChat(hospital: Hospital, metrics: MetricSnapshot[]) {
       };
       setMessages(prev => [...prev, agentMsg]);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Connection error. Check your network and try again.';
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'agent',
-        content: 'Connection error. Check your network and try again.',
+        content: msg,
         timestamp: new Date().toLocaleTimeString(),
         confidence: 'low',
       }]);
