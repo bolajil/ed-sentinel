@@ -95,3 +95,4 @@ Update HOSPITALS in src/data/static.ts with your real facility list.
 ---
 
 Built by Lanre Bolaji · Huron Healthcare AI Platform · MIT License
+# ed-sentinel
