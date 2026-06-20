@@ -1,10 +1,13 @@
+const { embedOne } = require('./_lib/embed');
+const { upsert, PINECONE_AVAILABLE } = require('./_lib/pinecone');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'MISTRAL_API_KEY not configured' });
 
-  const { dataPreview, fileType, hospitalName, rowCount } = req.body;
+  const { dataPreview, fileType, hospitalName, hospitalId, rowCount } = req.body;
   if (!dataPreview) return res.status(400).json({ error: 'No data provided' });
 
   const prompt = `You are an ED data analyst specializing in Emergency Department metrics.
@@ -95,6 +98,38 @@ Rules:
           parsed.metrics[key] = typeof v === 'number' ? v : Number(v) || null;
         }
       }
+    }
+
+    // Store ingestion report in Pinecone under hospital namespace (fire-and-forget)
+    if (PINECONE_AVAILABLE && hospitalId) {
+      const metricSummary = Object.entries(parsed.metrics || {})
+        .filter(([, v]) => v !== null)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
+
+      const textToEmbed = [
+        `ED data ingestion report for ${hospitalName}`,
+        `File: ${fileType}, ${rowCount} rows`,
+        `Extracted metrics: ${metricSummary}`,
+        `Data quality: ${(parsed.quality?.issues || []).join('; ') || 'no issues'}`,
+        `Confidence: ${parsed.quality?.confidence || 'unknown'}`,
+      ].join('\n');
+
+      embedOne(textToEmbed, apiKey)
+        .then(vec => upsert(hospitalId, [{
+          id: `ingest-${hospitalId}-${Date.now()}`,
+          values: vec,
+          metadata: {
+            type: 'data_ingestion',
+            ts: new Date().toISOString(),
+            hospitalId,
+            hospitalName,
+            text: textToEmbed,
+            metrics: JSON.stringify(parsed.metrics).slice(0, 500),
+            confidence: parsed.quality?.confidence || 'unknown',
+          },
+        }]))
+        .catch(err => console.error('[ingest] Pinecone store failed:', err.message));
     }
 
     return res.status(200).json(parsed);

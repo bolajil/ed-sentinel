@@ -106,6 +106,7 @@ export const DataIngestion: React.FC<Props> = ({ hospital, onApply, hasIngested,
           dataPreview,
           fileType,
           hospitalName: hospital.name,
+          hospitalId: hospital.id,
           rowCount: totalRows,
         }),
       });
