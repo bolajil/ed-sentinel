@@ -3,6 +3,7 @@ import { Hospital, PurgeLogEntry, PurgeState } from './types';
 import { HOSPITALS } from './data/static';
 import { useMetrics } from './hooks/useMetrics';
 import { useChat } from './hooks/useChat';
+import { useHospitalStore } from './hooks/useHospitalStore';
 import { useTheme } from './context/ThemeContext';
 import { MetricGrid } from './components/MetricGrid';
 import { ChatPanel } from './components/ChatPanel';
@@ -29,19 +30,30 @@ export default function App() {
   const [eventLog, setEventLog] = useState<string[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportInsights, setReportInsights] = useState('');
-  const [ingestedData, setIngestedData] = useState<Record<string, number> | null>(null);
 
-  const { metrics, tick } = useMetrics(paused, ingestedData);
-  const { messages, loading, sendMessage, resetChat } = useChat(hospital, metrics);
+  // Per-hospital namespaced store — each hospital ID is fully isolated
+  const store = useHospitalStore(hospital.id);
+  const { metrics, tick } = useMetrics(paused, store.ingestedData);
+
+  const chatCtx = {
+    metrics,
+    history: store.history,
+    baselines: store.baselines,
+    dataSource: store.ingestedData ? 'ingested' as const : 'simulated' as const,
+  };
+  const { messages, loading, sendMessage, resetChat } = useChat(hospital, chatCtx);
 
   const purgeState = getPurgeState(demoMinutes);
   const critCount = metrics.filter(m => m.status === 'critical').length;
   const warnCount = metrics.filter(m => m.status === 'warning').length;
 
+  // Record metric snapshot into this hospital's namespace on each tick
   useEffect(() => {
+    store.recordSnapshot(metrics, tick);
     const crit = metrics.filter(m => m.status === 'critical').map(m => m.label).join(', ');
     const entry = `[${new Date().toLocaleTimeString()}] Tick #${tick} · ${hospital.name} · Crit: ${crit || 'none'}`;
     setEventLog(prev => [entry, ...prev].slice(0, 40));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, hospital.name, metrics]);
 
   useEffect(() => {
@@ -86,7 +98,7 @@ export default function App() {
 
   const tabs = [
     { id: 'dashboard', label: '⚡ Dashboard' },
-    { id: 'ingest',    label: ingestedData ? '📥 Ingest  ●' : '📥 Ingest' },
+    { id: 'ingest',    label: store.ingestedData ? '📥 Ingest  ●' : '📥 Ingest' },
     { id: 'purge',     label: '🕐 Purge Clock' },
     { id: 'log',       label: '📋 Event Log' },
   ] as const;
@@ -113,11 +125,11 @@ export default function App() {
                 <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
               </div>
             ))}
-            {ingestedData && (
+            {store.ingestedData && (
               <div style={{ background: '#00E5A014', border: '1px solid #00E5A044', borderRadius: 8, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00E5A0' }} />
-                <span style={{ fontSize: 10, color: '#00E5A0', fontWeight: 700 }}>Live Data</span>
-                <button onClick={() => setIngestedData(null)} style={{ background: 'none', border: 'none', color: '#00E5A088', cursor: 'pointer', fontSize: 12, padding: 0, marginLeft: 2 }}>✕</button>
+                <span style={{ fontSize: 10, color: '#00E5A0', fontWeight: 700 }}>Live Data — {hospital.name}</span>
+                <button onClick={store.clearIngestedData} style={{ background: 'none', border: 'none', color: '#00E5A088', cursor: 'pointer', fontSize: 12, padding: 0, marginLeft: 2 }}>✕</button>
               </div>
             )}
             <button
@@ -201,12 +213,12 @@ export default function App() {
         {activeTab === 'ingest' && (
           <DataIngestion
             hospital={hospital}
-            hasIngested={!!ingestedData}
+            hasIngested={!!store.ingestedData}
             onApply={values => {
-              setIngestedData(values);
+              store.setIngestedData(values);
               setActiveTab('dashboard');
             }}
-            onClear={() => setIngestedData(null)}
+            onClear={store.clearIngestedData}
           />
         )}
 
