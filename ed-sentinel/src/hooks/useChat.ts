@@ -101,9 +101,13 @@ export function useChat(hospital: Hospital, ctx: ChatContext) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+<<<<<<< HEAD
+          'X-Hospital-Id': hospital.id,   // namespace header for future server-side isolation
+=======
           'X-Hospital-Id':   hospital.id,
           'X-Hospital-Name': hospital.name,
           'X-Data-Source':   ctx.dataSource,
+>>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
         },
         body: JSON.stringify({
           model: 'mistral-large-latest',
