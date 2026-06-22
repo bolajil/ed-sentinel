@@ -19,9 +19,21 @@ export interface Hospital {
   id: string;
   name: string;
   city: string;
-  ehr: 'Epic' | 'Cerner' | 'Meditech';
+  ehr: string;
   beds: number;
   ftHours: string;
+}
+
+export interface EventLogEntry {
+  id: string;
+  timestamp: string;
+  tick: number;
+  hospitalId: string;
+  hospitalName: string;
+  summary: string;
+  critMetrics: string[];
+  warnMetrics: string[];
+  snapshot: MetricSnapshot[];
 }
 
 export interface ChatMessage {

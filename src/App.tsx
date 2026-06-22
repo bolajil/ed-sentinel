@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Hospital, PurgeLogEntry, PurgeState } from './types';
+import { Hospital, PurgeLogEntry, PurgeState, EventLogEntry } from './types';
 import { HOSPITALS } from './data/static';
 import { useMetrics } from './hooks/useMetrics';
 import { useChat } from './hooks/useChat';
@@ -21,13 +21,15 @@ function getPurgeState(nowMin: number): PurgeState {
 export default function App() {
   const { colors: C, isDark, toggle } = useTheme();
 
+  const [hospitals, setHospitals] = useState<Hospital[]>(HOSPITALS);
   const [hospital, setHospital] = useState<Hospital>(HOSPITALS[0]);
   const [paused, setPaused] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'ingest' | 'purge' | 'log'>('dashboard');
   const [demoMinutes, setDemoMinutes] = useState(840);
   const [actionTaken, setActionTaken] = useState(false);
   const [purgeLog, setPurgeLog] = useState<PurgeLogEntry[]>([]);
-  const [eventLog, setEventLog] = useState<string[]>([]);
+  const [eventLog, setEventLog] = useState<EventLogEntry[]>([]);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportInsights, setReportInsights] = useState('');
 
@@ -50,9 +52,20 @@ export default function App() {
   // Record metric snapshot into this hospital's namespace on each tick
   useEffect(() => {
     store.recordSnapshot(metrics, tick);
-    const crit = metrics.filter(m => m.status === 'critical').map(m => m.label).join(', ');
-    const entry = `[${new Date().toLocaleTimeString()}] Tick #${tick} · ${hospital.name} · Crit: ${crit || 'none'}`;
-    setEventLog(prev => [entry, ...prev].slice(0, 40));
+    const critMetrics = metrics.filter(m => m.status === 'critical').map(m => m.label);
+    const warnMetrics = metrics.filter(m => m.status === 'warning').map(m => m.label);
+    const entry: EventLogEntry = {
+      id: `${tick}-${hospital.id}`,
+      timestamp: new Date().toLocaleTimeString(),
+      tick,
+      hospitalId: hospital.id,
+      hospitalName: hospital.name,
+      summary: `Tick #${tick} · ${critMetrics.length ? `CRIT: ${critMetrics.join(', ')}` : 'No critical alerts'}`,
+      critMetrics,
+      warnMetrics,
+      snapshot: metrics,
+    };
+    setEventLog(prev => [entry, ...prev].slice(0, 60));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, hospital.name, metrics]);
 
@@ -156,7 +169,12 @@ export default function App() {
             }}>{paused ? '▶ Resume' : '⏸ Pause'}</button>
           </div>
         </div>
-        <HospitalSelector selected={hospital} onChange={handleHospitalChange} />
+        <HospitalSelector
+          hospitals={hospitals}
+          selected={hospital}
+          onChange={handleHospitalChange}
+          onAddHospital={h => setHospitals(prev => [...prev, h])}
+        />
       </div>
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, background: C.panel, padding: '0 24px', flexShrink: 0 }}>
@@ -237,11 +255,69 @@ export default function App() {
 
         {activeTab === 'log' && (
           <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
-            <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Live Agent Event Stream</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.9 }}>
-              {eventLog.map((e, i) => (
-                <div key={i} style={{ color: i === 0 ? C.green : C.muted, borderBottom: `1px solid ${C.border}22`, paddingBottom: 2 }}>{e}</div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Live Agent Event Stream</div>
+              <span style={{ fontSize: 9, color: C.muted }}>{eventLog.length} events · click any row to expand</span>
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: 11 }}>
+              {eventLog.map((entry, i) => {
+                const isExpanded = expandedLogId === entry.id;
+                const isLatest = i === 0;
+                return (
+                  <div key={entry.id}>
+                    <div
+                      onClick={() => setExpandedLogId(isExpanded ? null : entry.id)}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '5px 8px', borderRadius: 4, cursor: 'pointer',
+                        background: isExpanded ? `${C.accent}11` : 'transparent',
+                        borderBottom: `1px solid ${C.border}22`,
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flex: 1, minWidth: 0 }}>
+                        <span style={{ color: C.muted, flexShrink: 0 }}>{entry.timestamp}</span>
+                        <span style={{ color: C.accent, flexShrink: 0 }}>{entry.hospitalName}</span>
+                        <span style={{ color: isLatest ? C.green : (entry.critMetrics.length > 0 ? C.red : C.muted), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {entry.summary}
+                        </span>
+                        {entry.critMetrics.length > 0 && (
+                          <span style={{ background: `${C.red}22`, color: C.red, borderRadius: 3, padding: '1px 5px', fontSize: 9, flexShrink: 0 }}>
+                            {entry.critMetrics.length} CRIT
+                          </span>
+                        )}
+                        {entry.warnMetrics.length > 0 && (
+                          <span style={{ background: `${C.yellow}22`, color: C.yellow, borderRadius: 3, padding: '1px 5px', fontSize: 9, flexShrink: 0 }}>
+                            {entry.warnMetrics.length} WARN
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ color: C.muted, fontSize: 10, marginLeft: 8, flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, margin: '4px 0 8px', padding: 12 }}>
+                        <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                          Metric Snapshot — Tick #{entry.tick} — {entry.hospitalName}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                          {entry.snapshot.map(m => (
+                            <div key={m.id} style={{
+                              background: C.panel, borderRadius: 4, padding: '6px 10px',
+                              borderLeft: `3px solid ${m.status === 'critical' ? C.red : m.status === 'warning' ? C.yellow : C.green}`,
+                            }}>
+                              <div style={{ fontSize: 9, color: C.muted }}>{m.label}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: m.status === 'critical' ? C.red : m.status === 'warning' ? C.yellow : C.text }}>
+                                {m.unit === 'bool' ? (m.value === 1 ? 'OPEN' : 'CLOSED') : `${m.value.toFixed(m.unit === '%' ? 1 : 0)} ${m.unit !== 'bool' ? m.unit : ''}`}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 const { embedOne } = require('./_lib/embed');
 const { upsert, PINECONE_AVAILABLE } = require('./_lib/pinecone');
+const { logIngest } = require('./_lib/langfuse');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -131,6 +132,16 @@ Rules:
         }]))
         .catch(err => console.error('[ingest] Pinecone store failed:', err.message));
     }
+
+    // Langfuse: log the ingestion event (fire-and-forget)
+    logIngest({
+      hospitalId: hospitalId || 'unknown',
+      hospitalName,
+      fileType,
+      rowCount,
+      confidence: parsed.quality?.confidence || 'unknown',
+      metricsExtracted: Object.keys(parsed.metrics || {}).filter(k => parsed.metrics[k] !== null).length,
+    }).catch(err => console.error('[ingest] Langfuse log failed:', err.message));
 
     return res.status(200).json(parsed);
   } catch (err) {
