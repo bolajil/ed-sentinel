@@ -11,6 +11,7 @@
 
 const { embedOne } = require('./_lib/embed');
 const { query: pineconeQuery, upsert, PINECONE_AVAILABLE } = require('./_lib/pinecone');
+const { logChat } = require('./_lib/langfuse');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -19,7 +20,9 @@ module.exports = async function handler(req, res) {
   if (!mistralKey) return res.status(500).json({ error: 'MISTRAL_API_KEY not configured' });
 
   // Hospital namespace from header — set by useChat.ts X-Hospital-Id
-  const hospitalId = req.headers['x-hospital-id'] || 'unknown';
+  const hospitalId   = req.headers['x-hospital-id'] || 'unknown';
+  const hospitalName = req.headers['x-hospital-name'] || hospitalId;
+  const dataSource   = req.headers['x-data-source'] || 'simulated';
 
   const { messages } = req.body;
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -33,12 +36,14 @@ module.exports = async function handler(req, res) {
 
   // ── Step 1 & 2: Embed query + retrieve relevant context from this hospital's namespace ──
   let retrievedContext = '';
+  let ragHits = 0;
   if (PINECONE_AVAILABLE && lastUserText) {
     try {
       const queryVec = await embedOne(lastUserText, mistralKey);
       const hits = await pineconeQuery(hospitalId, queryVec, 4);
 
       if (hits.length > 0) {
+        ragHits = hits.length;
         const snippets = hits.map((h, i) =>
           `[${i + 1}] ${h.metadata?.type || 'context'} (${h.metadata?.ts || 'unknown time'}, score ${h.score.toFixed(2)}):\n${h.metadata?.text || ''}`
         ).join('\n\n');
@@ -75,12 +80,27 @@ module.exports = async function handler(req, res) {
       return res.status(upstream.status).json(data);
     }
 
-    // ── Step 5: Store AI response embedding in hospital namespace (fire-and-forget) ──
+    // ── Step 5: Async side effects — Pinecone store + Langfuse trace ──
     const aiContent = data.choices?.[0]?.message?.content;
-    if (PINECONE_AVAILABLE && aiContent && hospitalId !== 'unknown') {
-      storeResponseAsync(aiContent, lastUserText, hospitalId, mistralKey).catch(err =>
-        console.error('[chat] async embed store failed:', err.message)
-      );
+    const model = req.body.model || 'mistral-large-latest';
+
+    if (aiContent && hospitalId !== 'unknown') {
+      if (PINECONE_AVAILABLE) {
+        storeResponseAsync(aiContent, lastUserText, hospitalId, mistralKey).catch(err =>
+          console.error('[chat] async embed store failed:', err.message)
+        );
+      }
+      logChat({
+        hospitalId,
+        hospitalName,
+        model,
+        inputMessages: enrichedMessages,
+        outputText: aiContent,
+        usage: data.usage,
+        ragUsed: ragHits > 0,
+        ragHits,
+        dataSource,
+      }).catch(err => console.error('[chat] Langfuse log failed:', err.message));
     }
 
     return res.status(200).json(data);
