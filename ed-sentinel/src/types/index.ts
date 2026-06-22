@@ -19,17 +19,11 @@ export interface Hospital {
   id: string;
   name: string;
   city: string;
-<<<<<<< HEAD
-  ehr: 'Epic' | 'Cerner' | 'Meditech';
-=======
   ehr: string;
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
   beds: number;
   ftHours: string;
 }
 
-<<<<<<< HEAD
-=======
 export interface EventLogEntry {
   id: string;
   timestamp: string;
@@ -42,7 +36,6 @@ export interface EventLogEntry {
   snapshot: MetricSnapshot[];
 }
 
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
 export interface ChatMessage {
   id: string;
   role: 'user' | 'agent';

@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-<<<<<<< HEAD
-import { Hospital, PurgeLogEntry, PurgeState } from './types';
-=======
 import { Hospital, PurgeLogEntry, PurgeState, EventLogEntry } from './types';
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
 import { HOSPITALS } from './data/static';
 import { useMetrics } from './hooks/useMetrics';
 import { useChat } from './hooks/useChat';
@@ -25,22 +21,15 @@ function getPurgeState(nowMin: number): PurgeState {
 export default function App() {
   const { colors: C, isDark, toggle } = useTheme();
 
-<<<<<<< HEAD
-=======
   const [hospitals, setHospitals] = useState<Hospital[]>(HOSPITALS);
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
   const [hospital, setHospital] = useState<Hospital>(HOSPITALS[0]);
   const [paused, setPaused] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'ingest' | 'purge' | 'log'>('dashboard');
   const [demoMinutes, setDemoMinutes] = useState(840);
   const [actionTaken, setActionTaken] = useState(false);
   const [purgeLog, setPurgeLog] = useState<PurgeLogEntry[]>([]);
-<<<<<<< HEAD
-  const [eventLog, setEventLog] = useState<string[]>([]);
-=======
   const [eventLog, setEventLog] = useState<EventLogEntry[]>([]);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
   const [reportOpen, setReportOpen] = useState(false);
   const [reportInsights, setReportInsights] = useState('');
 
@@ -63,11 +52,6 @@ export default function App() {
   // Record metric snapshot into this hospital's namespace on each tick
   useEffect(() => {
     store.recordSnapshot(metrics, tick);
-<<<<<<< HEAD
-    const crit = metrics.filter(m => m.status === 'critical').map(m => m.label).join(', ');
-    const entry = `[${new Date().toLocaleTimeString()}] Tick #${tick} · ${hospital.name} · Crit: ${crit || 'none'}`;
-    setEventLog(prev => [entry, ...prev].slice(0, 40));
-=======
     const critMetrics = metrics.filter(m => m.status === 'critical').map(m => m.label);
     const warnMetrics = metrics.filter(m => m.status === 'warning').map(m => m.label);
     const entry: EventLogEntry = {
@@ -82,7 +66,6 @@ export default function App() {
       snapshot: metrics,
     };
     setEventLog(prev => [entry, ...prev].slice(0, 60));
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, hospital.name, metrics]);
 
@@ -186,16 +169,12 @@ export default function App() {
             }}>{paused ? '▶ Resume' : '⏸ Pause'}</button>
           </div>
         </div>
-<<<<<<< HEAD
-        <HospitalSelector selected={hospital} onChange={handleHospitalChange} />
-=======
         <HospitalSelector
           hospitals={hospitals}
           selected={hospital}
           onChange={handleHospitalChange}
           onAddHospital={h => setHospitals(prev => [...prev, h])}
         />
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
       </div>
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, background: C.panel, padding: '0 24px', flexShrink: 0 }}>
@@ -276,13 +255,6 @@ export default function App() {
 
         {activeTab === 'log' && (
           <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
-<<<<<<< HEAD
-            <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Live Agent Event Stream</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 11, lineHeight: 1.9 }}>
-              {eventLog.map((e, i) => (
-                <div key={i} style={{ color: i === 0 ? C.green : C.muted, borderBottom: `1px solid ${C.border}22`, paddingBottom: 2 }}>{e}</div>
-              ))}
-=======
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Live Agent Event Stream</div>
               <span style={{ fontSize: 9, color: C.muted }}>{eventLog.length} events · click any row to expand</span>
@@ -346,7 +318,6 @@ export default function App() {
                   </div>
                 );
               })}
->>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
             </div>
           </div>
         )}

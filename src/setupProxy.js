@@ -11,6 +11,7 @@ module.exports = function (app) {
   const ingestHandler = require('../api/ingest.js');
   app.use('/api/ingest', express.json({ limit: '10mb' }), ingestHandler);
 
+<<<<<<< HEAD
   // ── Resend email report proxy ───────────────────────────────────────────────
   app.use('/api/send-report', express.json(), async (req, res) => {
     const apiKey = process.env.RESEND_API_KEY;
@@ -31,5 +32,10 @@ module.exports = function (app) {
       return res.status(502).json({ error: 'Email service error: ' + err.message });
     }
   });
+=======
+  // ── Email report — delegates to api/send-report.js so local == production ──
+  const sendReportHandler = require('../api/send-report.js');
+  app.use('/api/send-report', express.json(), sendReportHandler);
+>>>>>>> 60ac6ab9c6c51646cba0422b87ad53503a772452
 
 };
